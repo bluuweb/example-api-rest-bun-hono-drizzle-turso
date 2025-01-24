@@ -1,0 +1,24 @@
+{
+  "name": "hono-api-rest",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.30.2",
+    "tsx": "^4.19.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.2",
+    "@libsql/client": "^0.14.0",
+    "drizzle-orm": "^0.38.4",
+    "hono": "^4.6.18",
+    "uuid": "^11.0.5",
+    "zod": "^3.24.1"
+  }
+}
