@@ -326,3 +326,7 @@ bookRouter.get(
 
 export default bookRouter;
 ```
+
+## Documentar con OpenAPI
+
+- [https://github.com/rhinobase/hono-openapi/blob/main/apps/sandbox/src/routes/zod.ts](https://github.com/rhinobase/hono-openapi/blob/main/apps/sandbox/src/routes/zod.ts)
