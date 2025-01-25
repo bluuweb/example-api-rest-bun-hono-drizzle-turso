@@ -1,10 +1,14 @@
-import { zValidator } from "@hono/zod-validator";
+// import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { z } from "zod";
 import { db } from "../db";
 import { usersTable } from "../db/schema";
+
+import { describeRoute } from "hono-openapi";
+import { resolver, validator as zValidator } from "hono-openapi/zod";
+import "zod-openapi/extend";
 
 if (!process.env.JWT_SECRET) {
   throw new Error("🚫 JWT_SECRET is required");
@@ -13,36 +17,96 @@ if (!process.env.JWT_SECRET) {
 export const authRouter = new Hono();
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email({
-    message: "🚫 Invalid email address",
-  }),
-  password: z.string().min(6, {
-    message: "🚫 Password must be at least 6 characters long",
-  }),
-});
-
-const registerSchema = z.object({
-  email: z.string().trim().toLowerCase().email({
-    message: "🚫 Invalid email address",
-  }),
-  password: z.string().min(6, {
-    message: "🚫 Password must be at least 6 characters long",
-  }),
-  username: z
+  email: z
     .string()
     .trim()
     .toLowerCase()
-    .min(3, {
-      message: "🚫 Username must be at least 3 characters long",
+    .email({
+      message: "🚫 Invalid email address",
     })
-    .max(20, {
-      message: "🚫 Username must be at most 20 characters long",
+    .openapi({
+      example: "test@test.com",
+      description: "User email",
+      ref: "email",
+    }),
+  password: z
+    .string()
+    .min(6, {
+      message: "🚫 Password must be at least 6 characters long",
     })
-    .optional(),
+    .openapi({
+      example: "123123",
+      description: "User password",
+      ref: "password",
+    }),
 });
 
-// /api/v1/auth
-authRouter.post("/login", zValidator("json", loginSchema), async (c) => {
+const loginValidator = zValidator("json", loginSchema);
+
+const openApiRoute = describeRoute({
+  description: "Login to the application",
+  responses: {
+    200: {
+      description: "Successful login response",
+      content: {
+        "application/json": {
+          // schema: {
+          //   type: "object",
+          //   properties: {
+          //     token: {
+          //       type: "string",
+          //       example:
+          //         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ0ZXN0QHRlc3QuY29tIiwiZXhwIjoxNjI4NzQ4NjE1fQ.1x5",
+          //     },
+          //   },
+          // },
+          schema: resolver(
+            z.object({ token: z.string() }).openapi({
+              example: {
+                token:
+                  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ0ZXN0QHRlc3QuY29tIiwiZXhwIjoxNjI4NzQ4NjE1fQ.1x5",
+              },
+            })
+          ),
+        },
+      },
+    },
+    404: {
+      description: "User not found",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                example: "🚫 User not found",
+              },
+            },
+          },
+        },
+      },
+    },
+    401: {
+      description: "Invalid password",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              message: {
+                type: "string",
+                example: "🚫 Invalid password",
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+authRouter.post("/login", openApiRoute, loginValidator, async (c) => {
   const { email, password } = c.req.valid("json");
 
   const [user] = await db
@@ -70,6 +134,26 @@ authRouter.post("/login", zValidator("json", loginSchema), async (c) => {
   const token = await sign(payload, secret);
 
   return c.json({ token });
+});
+
+const registerSchema = z.object({
+  email: z.string().trim().toLowerCase().email({
+    message: "🚫 Invalid email address",
+  }),
+  password: z.string().min(6, {
+    message: "🚫 Password must be at least 6 characters long",
+  }),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, {
+      message: "🚫 Username must be at least 3 characters long",
+    })
+    .max(20, {
+      message: "🚫 Username must be at most 20 characters long",
+    })
+    .optional(),
 });
 
 authRouter.post(
